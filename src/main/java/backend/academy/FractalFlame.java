@@ -4,10 +4,11 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import static backend.academy.Utils.RANDOM;
+import static java.lang.Math.cos;
+import static java.lang.Math.sin;
 
-@SuppressWarnings("MagicNumber")
 public class FractalFlame {
-    private static final int NUM_COUNT = 1000;
+    private static final int NUM_COUNT = 10000;
     private static final AffineTransform[] AFFINE = Utils.generateAffine(20);
     private final Params params;
     private final Pixel[][] pixels;
@@ -53,6 +54,7 @@ public class FractalFlame {
         return pixels;
     }
 
+    @SuppressWarnings("MagicNumber")
     private void fillPixels(final int from, final int to, final int xRes, final int yRes) {
         for (int num = from; num < to; num++) {
             double newX = RANDOM.nextDouble(2) - 1;
@@ -67,27 +69,46 @@ public class FractalFlame {
                 newX = Utils.applyTransform(x, y, true, coeffs.c(), transform);
                 newY = Utils.applyTransform(x, y, false, coeffs.f(), transform);
 
-                if (step < 0 || Math.abs(newX) > 1 || Math.abs(newY) > 1) {
-                    continue;
+                if (step >= 0) {
+                    rotateSymAndSet(xRes, yRes, newX, newY, coeffs);
                 }
+            }
+        }
+    }
 
-                final int x1 = xRes - (int) ((1 - newX) / 2 * xRes);
-                final int y1 = yRes - (int) ((1 - newY) / 2 * yRes);
+    private void rotateSymAndSet(
+        final int xRes,
+        final int yRes,
+        final double newX,
+        final double newY,
+        final AffineTransform coeffs
+    ) {
+        double theta = 0;
+        for (int s = 0; s < params.sym(); s++) {
+            theta += 2 * Math.PI / params.sym();
+            final double xRot = newX * cos(theta) - newY * sin(theta);
+            final double yRot = newX * sin(theta) + newY * cos(theta);
 
-                if (x1 >= xRes || y1 >= yRes) {
-                    continue;
-                } else if (pixels[x1][y1].counter() == 0) {
-                    synchronized (pixels[x1][y1]) {
-                        pixels[x1][y1].r(coeffs.color().getRed());
-                        pixels[x1][y1].g(coeffs.color().getGreen());
-                        pixels[x1][y1].b(coeffs.color().getBlue());
-                    }
+            if (Math.abs(xRot) > 1 || Math.abs(yRot) > 1) {
+                continue;
+            }
+
+            final int x1 = xRes - (int) ((1 - xRot) / 2 * xRes);
+            final int y1 = yRes - (int) ((1 - yRot) / 2 * yRes);
+
+            if (x1 >= xRes || y1 >= yRes) {
+                continue;
+            }
+
+            synchronized (pixels[x1][y1]) {
+                if (pixels[x1][y1].counter() == 0) {
+                    pixels[x1][y1].r(coeffs.color().getRed());
+                    pixels[x1][y1].g(coeffs.color().getGreen());
+                    pixels[x1][y1].b(coeffs.color().getBlue());
                 } else {
-                    synchronized (pixels[x1][y1]) {
-                        pixels[x1][y1].r((pixels[x1][y1].r() + coeffs.color().getRed()) / 2);
-                        pixels[x1][y1].g((pixels[x1][y1].g() + coeffs.color().getGreen()) / 2);
-                        pixels[x1][y1].b((pixels[x1][y1].b() + coeffs.color().getBlue()) / 2);
-                    }
+                    pixels[x1][y1].r((pixels[x1][y1].r() + coeffs.color().getRed()) / 2);
+                    pixels[x1][y1].g((pixels[x1][y1].g() + coeffs.color().getGreen()) / 2);
+                    pixels[x1][y1].b((pixels[x1][y1].b() + coeffs.color().getBlue()) / 2);
                 }
 
                 pixels[x1][y1].counter(pixels[x1][y1].counter() + 1);

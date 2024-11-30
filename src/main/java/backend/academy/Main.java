@@ -17,7 +17,9 @@ public class Main {
         "--format \"format\" for choosing format of picture",
         "--gamma \"gamma\" for choosing gamma coefficient",
         "--threads \"threads\" for choosing count of thread",
-        "--linear | --sinusoidal | --spherical | --horseshoe | --popcorn some of this flags for choosing transforms"
+        "--linear | --sinusoidal | --spherical | --swirl "
+            + "| --horseshoe | --popcorn some of this flags for choosing transforms",
+        "--sym \"sym\" for choosing sym coefficient"
     };
 
     public static void main(String[] args) throws IOException {

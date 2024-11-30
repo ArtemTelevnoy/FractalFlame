@@ -5,24 +5,25 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.imageio.ImageIO;
 import lombok.experimental.UtilityClass;
 import static java.lang.Math.pow;
 
-@SuppressWarnings({"MultipleStringLiterals", "ModifiedControlVariable", "MagicNumber"})
+@SuppressWarnings({"MultipleStringLiterals", "ModifiedControlVariable"})
 @UtilityClass
 public class Utils {
-    public static final SecureRandom RANDOM = new SecureRandom();
+    public static final ThreadLocalRandom RANDOM = ThreadLocalRandom.current();
     private static final int DEFAULT_HEIGHT = 200;
     private static final int DEFAULT_WIDTH = 200;
     private static final int DEFAULT_ITERATIONS = 1000;
     private static final int DEFAULT_THREAD_COUNT = 1;
     private static final String DEFAULT_FORMAT = "png";
     private static final double DEFAULT_GAMMA = 1;
+    private static final int DEFAULT_SYM = 1;
     private static final Set<String> VALID_FORMATS = Set.of(
         DEFAULT_FORMAT,
         "jpeg",
@@ -37,7 +38,7 @@ public class Utils {
         "--popcorn"
     );
 
-    public static double applyTransform(
+    public double applyTransform(
         final double x,
         final double y,
         final boolean isX,
@@ -55,7 +56,7 @@ public class Utils {
         };
     }
 
-    public static void saveImg(final Pixel[][] pixels, final Params params) throws IOException {
+    public void saveImg(final Pixel[][] pixels, final Params params) throws IOException {
         final BufferedImage image = new BufferedImage(params.w(), params.h(), BufferedImage.TYPE_INT_RGB);
         logAndGammaCorrection(pixels, params);
 
@@ -68,7 +69,7 @@ public class Utils {
         ImageIO.write(image, params.format(), buildFilePath(params.format()));
     }
 
-    private static File buildFilePath(final String format) {
+    private File buildFilePath(final String format) {
         var classResource = Main.class.getClassLoader().getResource(Main.class.getName().replace('.', '/') + ".class");
         if (classResource == null) {
             throw new RuntimeException("Class not found");
@@ -85,7 +86,7 @@ public class Utils {
                 + "\\src\\main\\resources" + "\\points_image." + format);
     }
 
-    private static void logAndGammaCorrection(final Pixel[][] pixels, final Params params) {
+    private void logAndGammaCorrection(final Pixel[][] pixels, final Params params) {
         double maxCount = 0;
         for (int x = 0; x < params.w(); x++) {
             for (int y = 0; y < params.h(); y++) {
@@ -107,20 +108,22 @@ public class Utils {
         }
     }
 
-    private static void checkParams(final String[] args) {
+    private void checkParams(final String[] args) {
         if (Arrays.stream(args).filter("--h"::equals).count() > 1
             || Arrays.stream(args).filter("--w"::equals).count() > 1
             || Arrays.stream(args).filter("--i"::equals).count() > 1
             || Arrays.stream(args).filter("--format"::equals).count() > 1
             || Arrays.stream(args).filter("--gamma"::equals).count() > 1
-            || Arrays.stream(args).filter("--threads"::equals).count() > 1) {
+            || Arrays.stream(args).filter("--threads"::equals).count() > 1
+            || Arrays.stream(args).filter("--sym"::equals).count() > 1) {
             throw new IllegalArgumentException("Some flags were repeated more than one time");
         }
     }
 
     @SuppressWarnings("CyclomaticComplexity")
-    public static Params getParams(final String[] args) {
-        checkParams(args);
+    public Params getParams(final String[] args) {
+        final String[] filterArgs = Arrays.stream(args).filter(o -> !"--help".equals(o)).toArray(String[]::new);
+        checkParams(filterArgs);
 
         int h = DEFAULT_HEIGHT;
         int w = DEFAULT_WIDTH;
@@ -128,57 +131,59 @@ public class Utils {
         int thread = DEFAULT_THREAD_COUNT;
         String format = DEFAULT_FORMAT;
         double gamma = DEFAULT_GAMMA;
+        int sym = DEFAULT_SYM;
         final Set<String> transforms = new HashSet<>();
 
         try {
-            for (int i = 0; i < args.length; i++) {
-                switch (args[i]) {
+            for (int i = 0; i < filterArgs.length; i++) {
+                switch (filterArgs[i]) {
                     case "--h":
-                        h = Integer.parseInt(args[++i]);
+                        h = Integer.parseInt(filterArgs[++i]);
                         break;
                     case "--w":
-                        w = Integer.parseInt(args[++i]);
+                        w = Integer.parseInt(filterArgs[++i]);
                         break;
                     case "--i":
-                        iterations = Integer.parseInt(args[++i]);
+                        iterations = Integer.parseInt(filterArgs[++i]);
                         break;
                     case "--format":
-                        if (!VALID_FORMATS.contains(args[++i])) {
+                        if (!VALID_FORMATS.contains(filterArgs[++i])) {
                             throw new IllegalArgumentException("Invalid picture format");
                         }
 
-                        format = args[++i];
+                        format = filterArgs[++i];
                         break;
                     case "--gamma":
-                        gamma = Double.parseDouble(args[++i]);
+                        gamma = Double.parseDouble(filterArgs[++i]);
                         break;
                     case "--threads":
-                        thread = Integer.parseInt(args[++i]);
+                        thread = Integer.parseInt(filterArgs[++i]);
                         break;
-                    case "--help":
+                    case "--sym":
+                        sym = Integer.parseInt(filterArgs[++i]);
                         break;
                     default:
-                        if (!VALID_TRANSFORMS.contains(args[i])) {
-                            throw new IllegalArgumentException("Invalid type of argument: " + args[i]);
+                        if (!VALID_TRANSFORMS.contains(filterArgs[i])) {
+                            throw new IllegalArgumentException("Invalid type of argument: " + filterArgs[i]);
                         }
 
-                        transforms.add(args[i]);
+                        transforms.add(filterArgs[i]);
                 }
             }
         } catch (IndexOutOfBoundsException e) {
             throw new IllegalArgumentException("Some flag without value", e);
         }
 
-        if (iterations <= 0 || h <= 0 || w <= 0 || thread <= 0) {
+        if (iterations <= 0 || h <= 0 || w <= 0 || thread <= 0 || sym <= 0 || gamma <= 0) {
             throw new IllegalArgumentException("Num params must be positive");
         } else if (transforms.isEmpty()) {
             throw new IllegalArgumentException("Zero transforms");
         }
 
-        return new Params(h, w, iterations, format, transforms.stream().toList(), gamma, thread);
+        return new Params(h, w, iterations, format, transforms.stream().toList(), gamma, thread, sym);
     }
 
-    public static boolean checkAffine(
+    public boolean checkAffine(
         final double a,
         final double b,
         final double d,
@@ -189,7 +194,8 @@ public class Utils {
         return a2AddD2 < 1 && b2AddE2 < 1 && a2AddD2 + b2AddE2 < 1 + pow(a * e - b * d, 2);
     }
 
-    public static AffineTransform[] generateAffine(final int count) {
+    @SuppressWarnings("MagicNumber")
+    public AffineTransform[] generateAffine(final int count) {
         final AffineTransform[] affine = new AffineTransform[count];
 
         double a;
