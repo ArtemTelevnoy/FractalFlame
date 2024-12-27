@@ -1,10 +1,12 @@
+import backend.academy.AffineTransform;
 import backend.academy.FractalFlame;
 import backend.academy.Main;
 import backend.academy.Params;
-import backend.academy.Utils;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.security.SecureRandom;
 import java.util.List;
 import static backend.academy.Transforms.*;
@@ -15,16 +17,17 @@ public class FractalTests {
 
     @Test
     public void validAffine() {
-        assertTrue(Utils.checkAffine(0.5, 0.49, 0.5, 0.49));
-        assertFalse(Utils.checkAffine(1, 0.49, 0.5, 0.49));
+        assertTrue(AffineTransform.checkAffine(0.5, 0.49, 0.5, 0.49));
+        assertFalse(AffineTransform.checkAffine(1, 0.49, 0.5, 0.49));
     }
 
-    @Test
-    public void goodParams() {
-        assertDoesNotThrow(() -> Main.main(new String[]{"--linear", "--gamma", "2", "--sym", "2", "--help"}));
-        assertDoesNotThrow(() -> Main.main(new String[]{"--linear", "--gamma", "0.5", "--sinusoidal", "--help"}));
-        assertDoesNotThrow(() -> Main.main(new String[]{"--linear", "--sym", "5", "--sinusoidal", "--i", "1000"}));
-        assertDoesNotThrow(() -> Main.main(new String[]{"--sinusoidal", "--i", "1000", "--h", "1080", "--w", "1920"}));
+    @ParameterizedTest
+    @ValueSource(strings = {"--linear --gamma 2 --sym 2 --help",
+        "--linear --gamma 0.5 --sinusoidal --help",
+        "--linear --sym 5 --sinusoidal --i 1000",
+        "--sinusoidal --i 1000 --h 1080 --w 1920"})
+    public void goodParams(final String arr) {
+        assertDoesNotThrow(() -> Params.getParams(arr.split(" ")));
     }
 
     @Test
@@ -56,25 +59,21 @@ public class FractalTests {
         return Math.sqrt(x * x + y * y);
     }
 
-    @Test
-    public void badParams() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> Main.main(null));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> Main.main(new String[]{null}));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> Main.main(new String[]{"--h", "2", "--gamma", "2"}));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> Main.main(new String[]{"--swirl", "--unknown"}));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> Main.main(new String[]{"--swirl", "--h", "2", "--h", "3"}));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> Main.main(new String[]{"--swirl", "--h"}));
+    @ParameterizedTest
+    @ValueSource(strings = {"--h 2 --gamma 2", "--swirl --unknown", "--swirl --h 2 --h 3", "--swirl --h"})
+    public void badParams(final String arr) {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> Main.main(arr.split(" ")));
     }
 
     @SneakyThrows
     @Test
     public void ParallelVsSingleThread() {
         final List<String> transforms = List.of("--swirl", "--popcorn");
-        final Params params1 = new Params(100, 100, 1000, "png", transforms, 1, 1, 1);
+        final Params params1 = new Params(100, 100, 1000, "png", transforms, 1, 1, 1, "points");
         final long time1 = new FractalFlame(params1).create();
 
         for (int i = 1; i < 6; i++) {
-            final Params params2 = new Params(100, 100, 1000, "png", transforms, 1, i * 5, 1);
+            final Params params2 = new Params(100, 100, 1000, "png", transforms, 1, i * 5, 1, "points");
             final long time2 = new FractalFlame(params2).create();
             Assertions.assertTrue(time2 <= time1);
         }

@@ -3,13 +3,14 @@ package backend.academy;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import static backend.academy.Utils.RANDOM;
+import static backend.academy.SaveFile.RANDOM;
 import static java.lang.Math.cos;
+import static java.lang.Math.pow;
 import static java.lang.Math.sin;
 
 public class FractalFlame {
     private static final int NUM_COUNT = 10000;
-    private static final AffineTransform[] AFFINE = Utils.generateAffine(20);
+    private static final AffineTransform[] AFFINE = AffineTransform.generateAffine(20);
     private final Params params;
     private final Pixel[][] pixels;
 
@@ -20,9 +21,33 @@ public class FractalFlame {
 
     public long create() throws IOException {
         final LocalDateTime before = LocalDateTime.now();
-        Utils.saveImg(chaosGame(), params);
+        final Pixel[][] imgPixels = chaosGame();
+        logAndGammaCorrection(imgPixels, params);
+        SaveFile.saveImg(imgPixels, params);
         final LocalDateTime after = LocalDateTime.now();
         return Duration.between(before, after).getSeconds();
+    }
+
+    private static void logAndGammaCorrection(final Pixel[][] pixels, final Params params) {
+        double maxCount = 0;
+        for (int x = 0; x < params.w(); x++) {
+            for (int y = 0; y < params.h(); y++) {
+                maxCount = Math.max(maxCount, Math.log10(pixels[x][y].counter()));
+            }
+        }
+
+        for (int x = 0; x < params.w(); x++) {
+            for (int y = 0; y < params.h(); y++) {
+                if (pixels[x][y].counter() == 0) {
+                    continue;
+                }
+
+                final double c = Math.log10(pixels[x][y].counter()) / maxCount;
+                pixels[x][y].r((int) (pixels[x][y].r() * pow(c, 1 / params.gamma())));
+                pixels[x][y].g((int) (pixels[x][y].g() * pow(c, 1 / params.gamma())));
+                pixels[x][y].b((int) (pixels[x][y].b() * pow(c, 1 / params.gamma())));
+            }
+        }
     }
 
     private Pixel[][] chaosGame() {
@@ -66,8 +91,8 @@ public class FractalFlame {
                 final double y = coeffs.d() * newX + coeffs.e() * newY + coeffs.f();
 
                 final String transform = params.transforms().get(RANDOM.nextInt(params.transforms().size()));
-                newX = Utils.applyTransform(x, y, true, coeffs.c(), transform);
-                newY = Utils.applyTransform(x, y, false, coeffs.f(), transform);
+                newX = Transforms.applyTransform(x, y, true, coeffs.c(), transform);
+                newY = Transforms.applyTransform(x, y, false, coeffs.f(), transform);
 
                 if (step >= 0) {
                     rotateSymAndSet(xRes, yRes, newX, newY, coeffs);

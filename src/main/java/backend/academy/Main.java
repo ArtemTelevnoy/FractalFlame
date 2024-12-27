@@ -30,7 +30,7 @@ public class Main {
             Arrays.stream(HINT).forEach(OUT::println);
         }
 
-        final Params params = Utils.getParams(args);
+        final Params params = Params.getParams(args);
         OUT.printf("Working time for %d threads: %d", params.thread(), new FractalFlame(params).create());
     }
 }

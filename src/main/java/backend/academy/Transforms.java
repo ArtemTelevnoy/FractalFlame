@@ -8,26 +8,44 @@ import static java.lang.Math.tan;
 
 @UtilityClass
 public class Transforms {
-    public double sinusoidal(final double cord) {
+    public static double applyTransform(
+        final double x,
+        final double y,
+        final boolean isX,
+        final double coeff,
+        final String transform
+    ) {
+        return switch (transform) {
+            case "--linear" -> isX ? x : y;
+            case "--sinusoidal" -> Transforms.sinusoidal(isX ? x : y);
+            case "--spherical" -> Transforms.spherical(x, y, isX);
+            case "--swirl" -> Transforms.swirl(x, y, isX);
+            case "--horseshoe" -> Transforms.horseshoe(x, y, isX);
+            case "--popcorn" -> Transforms.popcorn(x, y, isX, coeff);
+            default -> throw new IllegalArgumentException("Unknown transform");
+        };
+    }
+
+    public static double sinusoidal(final double cord) {
         return sin(cord);
     }
 
-    public double spherical(final double x, final double y, final boolean isX) {
+    public static double spherical(final double x, final double y, final boolean isX) {
         return (isX ? x : y) / pow(radius(x, y), 2);
     }
 
-    public double swirl(final double x, final double y, final boolean isX) {
+    public static double swirl(final double x, final double y, final boolean isX) {
         final double r2 = pow(radius(x, y), 2);
         return x * (isX ? sin(r2) : cos(r2)) - y * (isX ? cos(r2) : sin(r2));
     }
 
-    public double horseshoe(final double x, final double y, final boolean isX) {
+    public static double horseshoe(final double x, final double y, final boolean isX) {
         final double r = radius(x, y);
         return (isX ? (x - y) * (x + y) : 2 * x * y) / r;
     }
 
     @SuppressWarnings("MagicNumber")
-    public double popcorn(
+    public static double popcorn(
         final double x,
         final double y,
         final boolean isX,
@@ -36,7 +54,7 @@ public class Transforms {
         return (isX ? x : y) + coeff * sin(tan(3 * (isX ? y : x)));
     }
 
-    private double radius(final double x, final double y) {
+    private static double radius(final double x, final double y) {
         return Math.sqrt(x * x + y * y);
     }
 }
